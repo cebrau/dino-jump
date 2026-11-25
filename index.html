@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>青綠色小恐龍</title>
+  <meta name="description" content="點進來看小恐龍散步,點一下牠就會跳起來!" />
+
+  <!-- LINE / Facebook link preview card -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="青綠色小恐龍" />
+  <meta property="og:description" content="點進來看小恐龍散步,點一下牠就會跳起來!" />
+  <meta property="og:url" content="https://cebrau.github.io/dino-jump/" />
+  <meta property="og:image" content="https://cebrau.github.io/dino-jump/preview.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <style>
+    :root {
+      --bg: #f9f5eb;
+      --ink: #2e5958;
+      --ink-soft: #4f7f7d;
+      --mint: rgba(126, 200, 189, 0.22);
+      --line: rgba(46, 89, 88, 0.22);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+      touch-action: manipulation;
+      cursor: pointer;
+    }
+    .stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    #rive-canvas {
+      width: min(100vw, calc((100vh - 110px) * 5 / 6));
+      aspect-ratio: 5 / 6;
+      max-width: 560px;
+      display: block;
+      touch-action: manipulation;
+    }
+    .hint {
+      position: fixed;
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      border-radius: 999px;
+      background: var(--mint);
+      border: 1.5px solid var(--line);
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      pointer-events: none;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .status {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      color: var(--ink-soft);
+      pointer-events: none;
+    }
+    .status[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div id="status" class="status">小恐龍載入中…</div>
+    <canvas id="rive-canvas" width="500" height="600" aria-label="會散步的青綠色小恐龍,點一下會跳起來"></canvas>
+    <div id="hint" class="hint">點一下小恐龍讓牠跳起來!</div>
+  </main>
+
+  <script src="./rive.js"></script>
+  <script>
+    (function () {
+      var canvas = document.getElementById("rive-canvas");
+      var statusEl = document.getElementById("status");
+      var hintEl = document.getElementById("hint");
+      var jumpCount = 0;
+
+      function fail(msg, err) {
+        if (err) console.error(msg, err);
+        statusEl.hidden = false;
+        statusEl.textContent = msg;
+      }
+
+      if (!window.rive) { fail("動畫程式沒載入,請重新整理一次"); return; }
+
+      // Use the engine file next to this page, not a CDN.
+      rive.RuntimeLoader.setWasmUrl(new URL("rive.wasm", location.href).href);
+
+      var r = new rive.Rive({
+        src: "./dino.riv",
+        canvas: canvas,
+        artboard: "DinoWalkJump",
+        stateMachines: "State Machine 1",
+        autoplay: true,
+        autoBind: true,
+        layout: new rive.Layout({ fit: rive.Fit.Contain, alignment: rive.Alignment.Center }),
+        onLoad: function () {
+          statusEl.hidden = true;
+          r.resizeDrawingSurfaceToCanvas();
+        },
+        onLoadError: function (err) { fail("小恐龍載入失敗,請重新整理一次", err); }
+      });
+      window.__dino = r;
+
+      window.addEventListener("resize", function () { r.resizeDrawingSurfaceToCanvas(); });
+
+      function countJump() {
+        jumpCount += 1;
+        hintEl.textContent = "小恐龍跳了 " + jumpCount + " 次!再點一下";
+      }
+
+      // Tap on the dino: the Rive file's own ClickToJump listener makes it jump.
+      canvas.addEventListener("pointerdown", countJump);
+
+      // Tap anywhere else: fire the "jump" trigger ourselves.
+      document.addEventListener("pointerdown", function (e) {
+        if (e.target === canvas) return;
+        var vmi = r.viewModelInstance;
+        var t = vmi && vmi.trigger("jump");
+        if (t) { t.trigger(); countJump(); }
+      });
+    })();
+  </script>
+</body>
+</html>
